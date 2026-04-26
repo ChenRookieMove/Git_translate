@@ -16,7 +16,7 @@ def train_one_epoch(model,train_loader,loss,optimizer,device):
         inputs,targets = inputs.to(device),targets.to(device) ###形状(N=64,L)
         #1.前向传播
         #1.1 编码,得到一批上下文向量(N,hidden_size)
-        context_vectors = model.encoder(inputs)
+        encoder_outputs,context_vectors = model.encoder(inputs)
         #1.2 解码,Teacher Forcing
         #得到解码的输入和目标
         #看似不符合GRU的输入格式，实则在decoder中有一层embadding层让其先加了个维度
@@ -25,7 +25,7 @@ def train_one_epoch(model,train_loader,loss,optimizer,device):
         #用编码得到的上下文向量，作为初始隐状态，形状(1,N,hidden_size)
         decoder_h0 = context_vectors.unsqueeze(0)  #变得符合输入维度
         #解码器前向传播，得到解码输出，(N,L,vocab_size)
-        decoder_outputs,_ = model.decoder(decoder_inputs,decoder_h0)
+        decoder_outputs,_ = model.decoder(decoder_inputs,decoder_h0,encoder_outputs)
         #2.计算损失,输出形状(N,L,vocab_size),目标形状(N,L)
         # 但是需要调整输出维度为(N,vocab_size,L)
         loss_value =loss(decoder_outputs.transpose(1,2),decoder_targets)

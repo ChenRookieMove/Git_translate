@@ -9,7 +9,7 @@ def predict_batch(model,inputs,tokenizer,device):
     with torch.no_grad():
         # 1.前向传播
         # 1.1 编码,得到一批上下文向量(N,hidden_size)
-        context_vectors = model.encoder(inputs)
+        encoder_outputs,context_vectors = model.encoder(inputs)
         # 1.2 解码,自回归生成
         # 1.2.1用编码得到的上下文向量，作为初始隐状态，形状(1,N,hidden_size)
         decoder_hidden = context_vectors.unsqueeze(0)  # 变得符合输入维度
@@ -23,7 +23,7 @@ def predict_batch(model,inputs,tokenizer,device):
         # 1.2.3 循环迭代，自回归生成  #对于一批次内一个token一个token前向传播
         for i in range(SEQ_LEN):
             # (1) 解码器前向传播，得到解码输出，(N,L=1,vocab_size)
-            decoder_output, decoder_hidden = model.decoder(decoder_input, decoder_hidden)
+            decoder_output, decoder_hidden = model.decoder(decoder_input, decoder_hidden,encoder_outputs)
             # (2) 词选择策略：贪心解码。得到预测下一个词的id(N,L=1)
             next_token_ids = torch.argmax(decoder_output,dim=-1)
             # (3) 保存预测id到生成列表中
