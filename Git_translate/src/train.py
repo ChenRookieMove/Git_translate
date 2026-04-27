@@ -14,18 +14,18 @@ def train_one_epoch(model,train_loader,loss,optimizer,device):
     # 按批次进行迭代
     for inputs,targets in tqdm(train_loader,desc='训练：'):
         inputs,targets = inputs.to(device),targets.to(device) ###形状(N=64,L)
-        #1.前向传播
-        #1.1 编码,得到一批上下文向量(N,hidden_size)
-        encoder_outputs,context_vectors = model.encoder(inputs)
-        #1.2 解码,Teacher Forcing
-        #得到解码的输入和目标
-        #看似不符合GRU的输入格式，实则在decoder中有一层embadding层让其先加了个维度
+        # 0.准备参数
+        # 0.1 基于目标序列，得到解码的输入(N,T=tgt_len)和目标
         decoder_inputs = targets[:,:-1]
         decoder_targets = targets[:,1:]
-        #用编码得到的上下文向量，作为初始隐状态，形状(1,N,hidden_size)
-        decoder_h0 = context_vectors.unsqueeze(0)  #变得符合输入维度
-        #解码器前向传播，得到解码输出，(N,L,vocab_size)
-        decoder_outputs,_ = model.decoder(decoder_inputs,decoder_h0,encoder_outputs)
+        # 0.2 源序列的填充掩码,(N,S)
+        src_pad_mask = (inputs == model.cn_embedding.padding_idx)
+        # 0.3 目标序列自注意力掩码 (T,T)
+        tgt_mask = model.transformer.generate_square_subsequent_mask(decoder_inputs.shape[1])
+        #1.前向传播
+        # model 前向传播得到解码输出,(N，L，vocab_size)
+        decoder_outputs = model(src=inputs,tgt=decoder_inputs,src_pad_mask=src_pad_mask,tgt_mask=tgt_mask)
+
         #2.计算损失,输出形状(N,L,vocab_size),目标形状(N,L)
         # 但是需要调整输出维度为(N,vocab_size,L)
         loss_value =loss(decoder_outputs.transpose(1,2),decoder_targets)
