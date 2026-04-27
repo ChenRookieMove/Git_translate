@@ -15,7 +15,7 @@ class TranslateDataset(Dataset):
         input = torch.tensor(self.data[index]['cn'],dtype=torch.long)
         target = torch.tensor(self.data[index]['en'],dtype=torch.long)
         return input,target
-# 定义一个整理函数，将一批函数长度对齐（填充）
+# 定义一个整理函数，将一批向量长度对齐（填充）
 def collate_fn(batch):
     # 将inputs和targets分成两个列表
     # batch形状[(input0,target0),(input1,target1),(input2,target2)....]

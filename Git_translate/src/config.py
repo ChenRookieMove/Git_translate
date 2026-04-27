@@ -23,11 +23,15 @@ UNK_TOKEN = '<UNK>'     # 未登录词
 PAD_TOKEN = '<pad>'     # 填 充 词
 START_TOKEN = '<sos>'  #起始标记
 END_TOKEN = '<eos>'    #结束标记
-# 4. 超参数
+# 4. 训练超参数
 SEQ_LEN = 128     # 序列（最大）长度
 BATCH_SIZE = 64
-EMBEDDING_SIZE = 128
-HIDDEN_SIZE = 256
 
 LEARNING_RATE = 1e-3
 EPOCHS = 50
+
+# 5. 模型结构参数
+DIM_MODEL = 128
+NUM_HEADS = 4
+NUM_ENCODER_LAYERS = 2
+NUM_DECODER_LAYERS = 2
