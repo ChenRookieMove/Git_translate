@@ -8,11 +8,11 @@ def predict_batch(model,inputs,tokenizer,device):
     #前向传播
     with torch.no_grad():
         # 1.前向传播
-        # 1.1 编码,得到一批上下文向量(N,hidden_size)
-        encoder_outputs,context_vectors = model.encoder(inputs)
+        # 1.1 编码
+        src_pad_mask = (inputs == model.cn_embedding.padding_idx)
+        memory = model.encode(inputs,src_pad_mask)
         # 1.2 解码,自回归生成
-        # 1.2.1用编码得到的上下文向量，作为初始隐状态，形状(1,N,hidden_size)
-        decoder_hidden = context_vectors.unsqueeze(0)  # 变得符合输入维度
+        # 1.2.1
         # 1.2.2 构建第一时间步的输入，长度为(N,1)的向量，内容全部为<SOS>的id
         batch_size = inputs.shape[0]
         decoder_input = torch.full(size=(batch_size,1),fill_value=tokenizer.start_id).to(device)
@@ -22,14 +22,15 @@ def predict_batch(model,inputs,tokenizer,device):
         is_finished = torch.full(size=[batch_size],fill_value=False).to(device)
         # 1.2.3 循环迭代，自回归生成  #对于一批次内一个token一个token前向传播
         for i in range(SEQ_LEN):
-            # (1) 解码器前向传播，得到解码输出，(N,L=1,vocab_size)
-            decoder_output, decoder_hidden = model.decoder(decoder_input, decoder_hidden,encoder_outputs)
-            # (2) 词选择策略：贪心解码。得到预测下一个词的id(N,L=1)
-            next_token_ids = torch.argmax(decoder_output,dim=-1)
+            # (1) 解码，得到解码输出，(N,i+1,en_vocab_size)
+            tgt_mask = model.transformer.generate_square_subsequent_mask(decoder_input.shape[1])
+            decoder_output = model.decode(decoder_input, memory,tgt_mask=tgt_mask,memory_pad_mask=src_pad_mask)
+            # (2) 词选择策略：贪心解码。得到预测下一个词的id(N,L=1)  ## 注意这里keepdim是argmax的参数，对-1维argmax但不压缩-1维
+            next_token_ids = torch.argmax(decoder_output[:,-1,:],dim=-1,keepdim=True)
             # (3) 保存预测id到生成列表中
             generated_ids.append(next_token_ids)
-            # (4) 更新输入以及隐状态
-            decoder_input = next_token_ids
+            # (4) 更新输入，把新预测的值加到输入上，形状增加为(N,T+1)
+            decoder_input = torch.cat((decoder_input,next_token_ids),dim =-1)
             # (5) 判断是否生成<eos>,如果一批全部生成<eos>则退出循环,(逻辑或实现eos的累积)
             # 这里不能直接拿next_token_ids判断的原因：即使出现了<eos>，下一步还是可能经过运算得到别的，而不是出现了<eos>,之后就一直是<eos>
             is_finished |= next_token_ids.squeeze(1) == tokenizer.end_id
